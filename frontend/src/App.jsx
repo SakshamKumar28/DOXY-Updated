@@ -1,10 +1,14 @@
 import React from 'react'
+import {Routes, Route} from 'react-router-dom'
+import Home from '@/pages/Landing.jsx'
 
 const App = () => {
   return (
-    <div>
-      Hello
-    </div>
+    <>
+      <Routes>
+        <Route path='/' element={<Home/>} />
+      </Routes>
+    </>
   )
 }
 
