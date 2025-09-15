@@ -1,19 +1,28 @@
 import express from 'express';
-import dotenv from 'dotenv';
-import { registerUser, loginUser, logoutUser } from '../controllers/auth.controller.js';
-dotenv.config();
+import { 
+    registerUser, 
+    verifyUser,       // ADDED
+    loginUser, 
+    verifyLogin,      // ADDED
+    logoutUser 
+} from '../controllers/auth.controller.js';
 
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET;
 
-//User Registration
+// --- Registration Flow ---
+// Step 1: User provides details, OTP is sent
 router.post('/user/register', registerUser);
+// Step 2: User provides OTP to verify and complete registration
+router.post('/user/verify', verifyUser); // ADDED
 
-//User Login
+// --- Login Flow ---
+// Step 1: User provides phone number, OTP is sent
 router.post('/user/login', loginUser);
+// Step 2: User provides OTP to verify and get a token
+router.post('/user/verify-login', verifyLogin); // ADDED
 
-//User Logout
+// --- Logout ---
 router.post('/user/logout', logoutUser);
 
 
