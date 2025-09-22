@@ -4,8 +4,10 @@ import {
     verifyUser,       // ADDED
     loginUser, 
     verifyLogin,      // ADDED
-    logoutUser 
+    logoutUser ,
+    getUser
 } from '../controllers/auth.controller.js';
+import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 
 const router = express.Router();
@@ -24,6 +26,9 @@ router.post('/user/verify-login', verifyLogin); // ADDED
 
 // --- Logout ---
 router.post('/user/logout', logoutUser);
+
+// --- Get User Profile ---
+router.route("/user/profile").get(verifyJWT, getUser);
 
 
 export default router;
