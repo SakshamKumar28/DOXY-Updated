@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Phone, Video, Calendar, Star, Menu, X, ChevronRight, Shield, Clock, Users, Bot, FileText, Stethoscope, Heart, MessageCircle, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState({});
+  const navigate = useNavigate();
 
+  
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -106,7 +109,7 @@ const Home = () => {
 
             <div className="hidden md:flex space-x-4">
               <button className="text-green-600 font-semibold hover:text-green-700 transition-colors">Sign In</button>
-              <button className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold">
+              <button onClick={()=>{navigate('/user/register')}} className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold">
                 Get Started
               </button>
             </div>
@@ -183,7 +186,7 @@ const Home = () => {
                   </button>
                   <button 
                     className="block w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold text-lg hover:shadow-lg transform hover:scale-105 transition-all duration-200 hover:from-green-600 hover:to-emerald-700"
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={() => {setIsMenuOpen(false); navigate('/user/register')}}
                   >
                     Get Started
                   </button>
