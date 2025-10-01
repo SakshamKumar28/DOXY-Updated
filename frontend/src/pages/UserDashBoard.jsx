@@ -8,8 +8,11 @@ import {
 
 // Configure your axios instance to connect to your backend
 const api = axios.create({
-    baseURL: import.meta.env.SERVER_URL || 'http://localhost:3000/api',
+    baseURL: 'http://localhost:3000/api',
     withCredentials: true,
+    headers: {
+        'Content-Type': 'application/json'
+    }
 });
 
 // A simple loading spinner component
@@ -33,22 +36,24 @@ const UserDashBoard = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const [userRes, appointmentsRes, doctorsRes] = await Promise.all([
-                    api.get('/auth/user/profile'),
-                    // api.get('/appointments/upcoming'), // Assuming this endpoint exists
-                    // api.get('/doctors/recent')         // Assuming this endpoint exists
-                ]);
+                const userRes = await api.get('/auth/user/profile');
+
+                if (!userRes.data?.data) {
+                    throw new Error('No user data received');
+                }
+
+                // Initialize with empty arrays since these endpoints aren't implemented yet
+                setAppointments([]);
+                setDoctors([]);
 
                 setUser(userRes.data.data);
-                setAppointments(appointmentsRes.data.data);
-                setDoctors(doctorsRes.data.data);
                 setError('');
 
             } catch (err) {
                 console.error("Failed to fetch dashboard data:", err);
                 setError("Could not load your dashboard. Please try again later.");
                 if (err.response?.status === 401) {
-                    navigate('/login'); // Redirect to login if unauthorized
+                    navigate('/user/register'); // Redirect to register if unauthorized
                 }
             } finally {
                 setLoading(false);
@@ -60,8 +65,8 @@ const UserDashBoard = () => {
 
     const handleLogout = async () => {
         try {
-            await api.post('/user/logout');
-            navigate('/login');
+            await api.post('/auth/user/logout');
+            navigate('/');
         } catch (err) {
             console.error("Logout failed:", err);
             setError("Logout failed. Please try again.");

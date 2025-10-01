@@ -1,4 +1,4 @@
-import  User  from '../models/user.model.js';
+import User from '../models/user.model.js';
 import jwt from 'jsonwebtoken';
 import twilio from 'twilio';
 import { ApiError } from '../utils/ApiError.js';
@@ -49,7 +49,6 @@ const issueTokenAndSetCookie = (res, user) => {
         .json(new ApiResponse(200, { user: { _id: user._id, fullName: user.fullName }, token }, "User action successful!"));
 };
 
-
 // --- Controller Functions ---
 
 export const registerUser = asyncHandler(async (req, res) => {
@@ -79,7 +78,7 @@ export const registerUser = asyncHandler(async (req, res) => {
     }
 
     const verificationCode = await user.generateVerificationCode();
-    await user.save({ validateBeforeSave: false }); // Skip validation as we are only saving the code
+    await user.save({ validateBeforeSave: false });
 
     await sendVerificationSms(verificationCode, user.phoneNumber);
 
@@ -93,13 +92,13 @@ export const verifyUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "User ID and verification code are required.");
     }
 
-    // Fetch user with the verification code field
-    const user = await User.findById(userId).select("+verification.code +verification.expiresAt");
+    // FIXED: Use the correct field path for nested verification object
+    const user = await User.findById(userId).select("+verificationCode +verificationExpiry");
 
     if (!user) throw new ApiError(404, "User not found.");
     if (user.accountVerified) throw new ApiError(400, "Account is already verified.");
 
-    // **SECURITY FIX**: Use the secure verification method from the model
+    // Use the secure verification method from the model
     const isCodeValid = await user.verifyCode(verificationCode);
 
     if (!isCodeValid) {
@@ -107,8 +106,8 @@ export const verifyUser = asyncHandler(async (req, res) => {
     }
 
     user.accountVerified = true;
-    user.verification.code = undefined;
-    user.verification.expiresAt = undefined;
+    user.verificationCode = undefined;
+    user.verificationExpiry = undefined;
     await user.save({ validateBeforeSave: false });
 
     return issueTokenAndSetCookie(res, user);
@@ -141,12 +140,12 @@ export const verifyLogin = asyncHandler(async (req, res) => {
         throw new ApiError(400, "User ID and verification code are required.");
     }
 
-    // Fetch user with the verification code field
+    // FIXED: Use the correct field path for nested verification object
     const user = await User.findById(userId).select("+verification.code +verification.expiresAt");
     
     if (!user) throw new ApiError(404, "User not found.");
     
-    // **SECURITY FIX**: Use the secure verification method from the model
+    // Use the secure verification method from the model
     const isCodeValid = await user.verifyCode(verificationCode);
 
     if (!isCodeValid) {
@@ -154,8 +153,8 @@ export const verifyLogin = asyncHandler(async (req, res) => {
     }
     
     // Clear the code after use
-    user.verification.code = undefined;
-    user.verification.expiresAt = undefined;
+    user.verificationCode = undefined;
+    user.verificationExpiry = undefined;
     await user.save({ validateBeforeSave: false });
 
     return issueTokenAndSetCookie(res, user);
@@ -167,7 +166,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
 });
 
 export const getUser = asyncHandler(async (req, res) => {
-     return res
+    return res
         .status(200)
         .json(new ApiResponse(200, req.user, "User data fetched successfully"));
 });
