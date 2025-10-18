@@ -74,10 +74,10 @@ const UserDashBoard = () => {
     };
 
     const quickActions = [
-        { icon: <Bot className="w-6 h-6" />, title: 'AI Symptom Checker', subtitle: 'Check your symptoms', color: 'from-purple-500 to-purple-600', bgColor: 'bg-purple-50' },
-        { icon: <Video className="w-6 h-6" />, title: 'Video Consultation', subtitle: 'Talk to a doctor now', color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-50' },
-        { icon: <Calendar className="w-6 h-6" />, title: 'Book Appointment', subtitle: 'Schedule with specialist', color: 'from-green-500 to-green-600', bgColor: 'bg-green-50' },
-        { icon: <FileText className="w-6 h-6" />, title: 'Medical Records', subtitle: 'View your history', color: 'from-orange-500 to-orange-600', bgColor: 'bg-orange-50' }
+        { icon: <Bot className="w-6 h-6" />, title: 'AI Symptom Checker', subtitle: 'Check your symptoms', color: 'from-purple-500 to-purple-600', bgColor: 'bg-purple-50', action: () => alert('AI Symptom Checker coming soon!') },
+        { icon: <Video className="w-6 h-6" />, title: 'Video Consultation', subtitle: 'Talk to a doctor now', color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-50', action: () => navigate('/book-appointment') },
+        { icon: <Calendar className="w-6 h-6" />, title: 'Book Appointment', subtitle: 'Schedule with specialist', color: 'from-green-500 to-green-600', bgColor: 'bg-green-50', action: () => navigate('/book-appointment') },
+        { icon: <FileText className="w-6 h-6" />, title: 'Medical Records', subtitle: 'View your history', color: 'from-orange-500 to-orange-600', bgColor: 'bg-orange-50', action: () => alert('Medical Records coming soon!') }
     ];
 
     const navigationItems = [
@@ -100,18 +100,38 @@ const UserDashBoard = () => {
             case 'home':
                 return (
                     <div className="space-y-6">
-                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl p-6 text-white relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -mb-10 -ml-10"></div>
                             <div className="relative z-10">
-                                <h2 className="text-2xl font-bold mb-2">Welcome back, {user?.fullName?.split(' ')[0]}! 👋</h2>
-                                <p className="text-green-100 mb-4">How are you feeling today?</p>
+                                <h2 className="text-2xl md:text-3xl font-bold mb-2">Welcome back, {user?.fullName?.split(' ')[0]}! 👋</h2>
+                                <p className="text-green-100 mb-4">Here’s a quick look at your health today.</p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                                    <div className="bg-white/10 rounded-2xl p-3">
+                                        <div className="text-xs text-green-100">Appointments</div>
+                                        <div className="text-xl font-bold">{appointments.length || 0}</div>
+                                    </div>
+                                    <div className="bg-white/10 rounded-2xl p-3">
+                                        <div className="text-xs text-green-100">Prescriptions</div>
+                                        <div className="text-xl font-bold">{0}</div>
+                                    </div>
+                                    <div className="bg-white/10 rounded-2xl p-3">
+                                        <div className="text-xs text-green-100">Favorites</div>
+                                        <div className="text-xl font-bold">{doctors.length || 0}</div>
+                                    </div>
+                                    <div className="bg-white/10 rounded-2xl p-3">
+                                        <div className="text-xs text-green-100">Rewards</div>
+                                        <div className="text-xl font-bold">{120}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
                         <div>
                             <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {quickActions.map((action, index) => (
-                                    <div key={index} className={`${action.bgColor} rounded-2xl p-4 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer`}>
+                                    <div key={index} onClick={action.action} className={`${action.bgColor} rounded-2xl p-4 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer`}>
                                         <div className={`w-12 h-12 bg-gradient-to-r ${action.color} rounded-xl flex items-center justify-center text-white mb-3`}>
                                             {action.icon}
                                         </div>
@@ -119,6 +139,48 @@ const UserDashBoard = () => {
                                         <p className="text-sm text-gray-600">{action.subtitle}</p>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-3 gap-6">
+                            <div className="md:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">Upcoming Appointments</h3>
+                                    <button className="text-green-600 text-sm font-semibold">View all</button>
+                                </div>
+                                <div className="divide-y divide-gray-100">
+                                    {appointments.length === 0 && (
+                                        <div className="text-sm text-gray-500 py-2">No appointments scheduled. Book one now.</div>
+                                    )}
+                                    {appointments.map((appt, idx) => (
+                                        <div key={idx} className="py-3 flex items-center justify-between">
+                                            <div>
+                                                <div className="font-semibold text-gray-900">{appt.doctor?.fullname || 'Doctor'}</div>
+                                                <div className="text-sm text-gray-600">{new Date(appt.startTime).toLocaleString()}</div>
+                                            </div>
+                                            <button 
+                                                onClick={() => navigate(`/video-call/${appt._id}`)}
+                                                className="text-sm bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                                            >
+                                                Join
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recommended Doctors</h3>
+                                <div className="space-y-4">
+                                    {(['Cardiologist','Dermatologist','Neurologist']).map((spec, i) => (
+                                        <div key={i} className="flex items-center justify-between">
+                                            <div>
+                                                <div className="font-semibold text-gray-900">Dr. Expert {i+1}</div>
+                                                <div className="text-sm text-gray-600">{spec}</div>
+                                            </div>
+                                            <button className="text-sm border px-3 py-1.5 rounded-lg">View</button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>

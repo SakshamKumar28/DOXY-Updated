@@ -108,8 +108,8 @@ const Home = () => {
             </nav>
 
             <div className="hidden md:flex space-x-4">
-              <button className="text-green-600 font-semibold hover:text-green-700 transition-colors">Sign In</button>
-              <button onClick={()=>{navigate('/user/register')}} className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold">
+              <button onClick={()=>{navigate('/role?action=login')}} className="text-green-600 font-semibold hover:text-green-700 transition-colors">Sign In</button>
+              <button onClick={()=>{navigate('/role?action=register')}} className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold">
                 Get Started
               </button>
             </div>
@@ -180,13 +180,13 @@ const Home = () => {
                 <div className="pt-6 space-y-4 border-t border-gray-200">
                   <button 
                     className="block w-full bg-white border-2 border-green-500 text-green-600 px-6 py-4 rounded-xl font-semibold text-lg hover:bg-green-50 transform hover:scale-105 transition-all duration-200 hover:shadow-lg"
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={() => { setIsMenuOpen(false); navigate('/role?action=login'); }}
                   >
                     Sign In
                   </button>
                   <button 
                     className="block w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold text-lg hover:shadow-lg transform hover:scale-105 transition-all duration-200 hover:from-green-600 hover:to-emerald-700"
-                    onClick={() => {setIsMenuOpen(false); navigate('/user/register')}}
+                    onClick={() => {setIsMenuOpen(false); navigate('/role?action=register')}}
                   >
                     Get Started
                   </button>

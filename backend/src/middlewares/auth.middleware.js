@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
+import Doctor from '../models/doctor.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -24,5 +25,19 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
 
     // 4. Attach the user object to the request for use in subsequent controllers
     req.user = user;
+    next();
+});
+
+export const verifyDoctorJWT = asyncHandler(async (req, res, next) => {
+    const token = req.cookies?.doctor_token || req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+        throw new ApiError(401, "Unauthorized request. Please log in as doctor.");
+    }
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const doctor = await Doctor.findById(decodedToken?.doctorId);
+    if (!doctor) {
+        throw new ApiError(401, "Invalid access token. Doctor not found.");
+    }
+    req.doctor = doctor;
     next();
 });

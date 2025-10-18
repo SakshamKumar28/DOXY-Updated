@@ -4,6 +4,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './lib/db.js';
 import authRoutes from './routes/auth.route.js';
+import doctorRoutes from './routes/doctor.route.js';
+import appointmentRoutes from './routes/appointment.route.js';
 
 const app = express();
 dotenv.config();
@@ -23,7 +25,8 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-
+app.use('/api/auth/doctor', doctorRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 // if(process.env.NODE_ENV === 'production'){
 //     app.use(express.static('public'));

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Phone, Calendar, MapPin, ArrowRight, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const SignupPage = ({ onNavigate }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -8,6 +9,7 @@ const SignupPage = ({ onNavigate }) => {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [userId, setUserId] = useState(null);
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -265,9 +267,9 @@ const SignupPage = ({ onNavigate }) => {
 
   const handleSignInClick = () => {
     if (onNavigate) {
-      onNavigate('/signin');
+      onNavigate('/role?action=login');
     } else if (typeof window !== 'undefined') {
-      window.location.href = '/signin';
+      window.location.href = '/role?action=login';
     }
   };
 
@@ -276,9 +278,9 @@ const SignupPage = ({ onNavigate }) => {
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
           {/* Logo */}
-          <div className="text-center mb-8">
+          <div onClick={()=>{navigate('/')}} className="text-center mb-8">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div  className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <span className="text-white text-2xl font-bold">D</span>
               </div>
               <span className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">DOXY</span>
@@ -363,7 +365,7 @@ const SignupPage = ({ onNavigate }) => {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div onClick={()=>{navigate('/')}} className="text-center mb-8 cursor-pointer">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
               <span className="text-white text-2xl font-bold">D</span>
