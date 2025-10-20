@@ -8,8 +8,8 @@ const appointmentSchema = new mongoose.Schema({
 	endTime: { type: Date, required: true },
 	status: {
 		type: String,
-		enum: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'],
-		default: 'Scheduled'
+		enum: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled', 'Pending', 'Rejected'],
+		default: 'Pending'
 	},
 	type: {
 		type: String,

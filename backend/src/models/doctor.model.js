@@ -11,16 +11,16 @@ const reviewSchema = new mongoose.Schema({
 
 // Subdocument for weekly availability slots
 const availabilitySlotSchema = new mongoose.Schema({
-	dayOfWeek: {
-		type: Number, // 0-6, where 0 = Sunday
-		min: 0,
-		max: 6,
-		required: true
-	},
-	slots: [{
-		start: { type: String, required: true }, // e.g. "09:00"
-		end: { type: String, required: true } // e.g. "17:00"
-	}]
+    dayOfWeek: { // 0-6, where 0 = Sunday
+        type: Number,
+        min: 0,
+        max: 6,
+        required: true
+    },
+    slots: [{ // e.g., [{ start: "09:00", end: "10:00" }, { start: "14:00", end: "15:00" }]
+        start: { type: String, required: true },
+        end: { type: String, required: true }
+    }]
 }, { _id: false });
 
 const doctorSchema = mongoose.Schema({
@@ -116,10 +116,10 @@ const doctorSchema = mongoose.Schema({
 		default:[]
 	},
 	// Weekly availability schedule
-	availability:{
-		type:[availabilitySlotSchema],
-		default:[]
-	},
+	availability: {
+        type: [availabilitySlotSchema],
+        default: []
+    },
 	// Consultation fee in the provider's currency (e.g., INR)
 	consultationFee:{
 		type:Number,

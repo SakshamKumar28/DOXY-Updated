@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { ApiError } from '../utils/ApiError.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
+import { validateAvailability, timeToMinutes } from '../utils/validators.js'
 
 const issueDoctorToken = (res, doctor) => {
     const token = jwt.sign({ doctorId: doctor._id, role: 'doctor' }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -46,11 +47,81 @@ export const getDoctorProfile = asyncHandler(async (req, res) => {
 
 export const getallDoctors = asyncHandler(async (req, res) => {
     try {
-        const doctors = await Doctor.find();
-        res.status(200).json(new ApiResponse(200, { doctors }, 'All doctors fetched successfully'));
+        // Fetch only necessary fields for listing doctors
+        const doctors = await Doctor.find().select(
+            "fullname email phoneNumber age specialisation experience hospital consultationFee averageRating ratingCount"
+        );
+        // Changed response structure slightly to align with others
+        res.status(200).json(new ApiResponse(200, doctors, 'All doctors fetched successfully'));
     } catch (error) {
-        throw new ApiError(500, 'Failed to fetch all doctors');
+        console.error("Error fetching all doctors:", error); // Log the actual error
+        throw new ApiError(500, error?.message || 'Failed to fetch all doctors');
     }
 });
+
+// --- New Availability Controllers ---
+
+/**
+ * @description Get the availability schedule for the logged-in doctor
+ * @route GET /api/auth/doctor/availability
+ * @access Private (Doctor only)
+ */
+export const getDoctorAvailability = asyncHandler(async (req, res) => {
+    // The doctor object is attached by verifyDoctorJWT middleware
+    const doctor = await Doctor.findById(req.doctor._id).select('availability');
+
+    if (!doctor) {
+        throw new ApiError(404, "Doctor not found.");
+    }
+
+    res.status(200).json(new ApiResponse(
+        200,
+        doctor.availability,
+        "Doctor availability fetched successfully"
+    ));
+});
+
+/**
+ * @description Update or set the availability schedule for the logged-in doctor
+ * @route PUT /api/auth/doctor/availability
+ * @access Private (Doctor only)
+ * @body { availability: Array<{ dayOfWeek: number, slots: Array<{ start: string, end: string }> }> }
+ */
+export const updateDoctorAvailability = asyncHandler(async (req, res) => {
+    const { availability } = req.body;
+
+    // --- Use the validator ---
+    const validationError = validateAvailability(availability);
+    if (validationError) {
+        throw new ApiError(400, validationError); // Throw a 400 Bad Request error if validation fails
+    }
+    // --- End validation ---
+
+    // Ensure days are unique and sort slots just in case (optional, but good practice)
+    const processedAvailability = availability.map(daySchedule => ({
+        ...daySchedule,
+        slots: daySchedule.slots.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
+    })).sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+
+
+    const doctor = await Doctor.findByIdAndUpdate(
+        req.doctor._id,
+        // Use processedAvailability which might be sorted/cleaned
+        { $set: { availability: processedAvailability } },
+        { new: true, runValidators: true } // Return the updated doc and run schema validators
+    ).select('availability'); // Only select the availability field
+
+    if (!doctor) {
+        throw new ApiError(404, "Doctor not found.");
+    }
+
+    res.status(200).json(new ApiResponse(
+        200,
+        doctor.availability,
+        "Doctor availability updated successfully"
+    ));
+});
+
+
 
 

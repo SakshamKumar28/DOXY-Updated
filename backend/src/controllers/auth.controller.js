@@ -133,30 +133,41 @@ export const loginUser = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, { userId: user._id }, 'Login OTP sent successfully.'));
 });
 
+// backend/src/controllers/auth.controller.js
+
 export const verifyLogin = asyncHandler(async (req, res) => {
     const { userId, verificationCode } = req.body;
+    console.log(`Verify Login Attempt - UserID: ${userId}, Code: ${verificationCode}`); // <-- ADD LOG
 
     if (!userId || !verificationCode) {
+        console.error("Verify Login Error: Missing userId or verificationCode"); // <-- ADD LOG
         throw new ApiError(400, "User ID and verification code are required.");
     }
 
-    // FIXED: Use the correct field path for nested verification object
-    const user = await User.findById(userId).select("+verification.code +verification.expiresAt");
-    
-    if (!user) throw new ApiError(404, "User not found.");
-    
-    // Use the secure verification method from the model
+    const user = await User.findById(userId).select("+verificationCode +verificationExpiry");
+
+    if (!user) {
+        console.error(`Verify Login Error: User not found for ID: ${userId}`); // <-- ADD LOG
+        throw new ApiError(404, "User not found.");
+    }
+
+    // Log expiry time for debugging
+    console.log(`Verify Login - Code Expiry: ${user.verificationExpiry}, Current Time: ${new Date()}`); // <-- ADD LOG
+
     const isCodeValid = await user.verifyCode(verificationCode);
+    console.log(`Verify Login - Is Code Valid: ${isCodeValid}`); // <-- ADD LOG
 
     if (!isCodeValid) {
+         console.error(`Verify Login Error: Invalid or expired code for UserID: ${userId}`); // <-- ADD LOG
         throw new ApiError(400, "Invalid or expired verification code.");
     }
-    
+
     // Clear the code after use
     user.verificationCode = undefined;
     user.verificationExpiry = undefined;
     await user.save({ validateBeforeSave: false });
 
+    console.log(`Verify Login Success for UserID: ${userId}`); // <-- ADD LOG
     return issueTokenAndSetCookie(res, user);
 });
 
