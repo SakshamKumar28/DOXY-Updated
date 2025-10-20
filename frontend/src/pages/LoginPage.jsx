@@ -97,9 +97,16 @@ const LoginPage = () => {
 
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Verification failed');
-      setOtp(['', '', '', '', '']);
-    } finally {
+      console.error("Verification API error:", err); // Log the full error for debugging
+      // Check if the specific "Invalid or expired" message came from the backend
+      if (err.message && err.message.toLowerCase().includes('invalid or expired')) {
+          setError('The code entered is incorrect or has expired. Please try again or resend.');
+      } else {
+          setError(err.message || 'Verification failed. Please check the code and try again.');
+      }
+      setOtp(['', '', '', '', '']); // Clear OTP on error
+    } 
+     finally {
       setIsLoading(false);
     }
   };

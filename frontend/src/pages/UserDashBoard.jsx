@@ -6,16 +6,12 @@ import {
     Clock, Star, ChevronRight, Bot, FileText, Heart, Activity, Shield, LogOut
 } from 'lucide-react';
 
-// Configure your axios instance to connect to your backend
 const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: 'http://localhost:3000',
     withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json'
-    }
+    headers: { 'Content-Type': 'application/json' }
 });
 
-// A simple loading spinner component
 const FullPageLoader = () => (
     <div className="flex items-center justify-center h-screen">
         <div className="w-16 h-16 border-4 border-green-200 border-t-green-500 rounded-full animate-spin"></div>
@@ -26,52 +22,51 @@ const UserDashBoard = () => {
     const [activeTab, setActiveTab] = useState('home');
     const [user, setUser] = useState(null);
     const [appointments, setAppointments] = useState([]);
-    const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-
     const navigate = useNavigate();
 
-    // Fetch all necessary data when the component mounts
-    useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                const userRes = await api.get('/auth/user/profile');
+    const fetchData = async (isInitialLoad = false) => {
+        if (isInitialLoad) setLoading(true);
+        setError('');
+        try {
+            const [userRes, appointmentsRes] = await Promise.all([
+                api.get('/api/auth/user/profile'),
+                api.get('/api/appointments/user/all')
+            ]);
 
-                if (!userRes.data?.data) {
-                    throw new Error('No user data received');
-                }
-
-                // Initialize with empty arrays since these endpoints aren't implemented yet
-                setAppointments([]);
-                setDoctors([]);
-
-                setUser(userRes.data.data);
-                setError('');
-
-            } catch (err) {
-                console.error("Failed to fetch dashboard data:", err);
-                setError("Could not load your dashboard. Please try again later.");
-                if (err.response?.status === 401) {
-                    navigate('/user/register'); // Redirect to register if unauthorized
-                }
-            } finally {
-                setLoading(false);
+            if (!userRes.data?.data) throw new Error('No user data received');
+            setUser(userRes.data.data);
+            setAppointments(appointmentsRes.data?.data?.appointments || []);
+        } catch (err) {
+            console.error("Failed to fetch dashboard data:", err);
+            setError("Could not load your dashboard. Please try again later.");
+            if (err.response?.status === 401) {
+                navigate('/user/login');
             }
-        };
+        } finally {
+            if (isInitialLoad) setLoading(false);
+        }
+    };
 
-        fetchDashboardData();
+    useEffect(() => {
+        fetchData(true);
     }, [navigate]);
 
     const handleLogout = async () => {
         try {
-            await api.post('/auth/user/logout');
+            await api.post('/api/auth/user/logout');
             navigate('/');
         } catch (err) {
             console.error("Logout failed:", err);
             setError("Logout failed. Please try again.");
         }
     };
+
+    const upcomingAppointments = appointments
+        .filter(appt => new Date(appt.startTime) > new Date() && (appt.status === 'Scheduled' || appt.status === 'Pending'))
+        .sort((a,b) => new Date(a.startTime) - new Date(b.startTime));
+
 
     const quickActions = [
         { icon: <Bot className="w-6 h-6" />, title: 'AI Symptom Checker', subtitle: 'Check your symptoms', color: 'from-purple-500 to-purple-600', bgColor: 'bg-purple-50', action: () => alert('AI Symptom Checker coming soon!') },
@@ -87,13 +82,9 @@ const UserDashBoard = () => {
         { id: 'profile', icon: User, label: 'Profile' }
     ];
 
-    if (loading) {
-        return <FullPageLoader />;
-    }
+    if (loading) return <FullPageLoader />;
     
-    if (error) {
-        return <div className="flex items-center justify-center h-screen text-red-600">{error}</div>;
-    }
+    if (error) return <div className="flex items-center justify-center h-screen text-red-600">{error}</div>;
 
     const renderContent = () => {
         switch (activeTab) {
@@ -108,16 +99,16 @@ const UserDashBoard = () => {
                                 <p className="text-green-100 mb-4">Here’s a quick look at your health today.</p>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                                     <div className="bg-white/10 rounded-2xl p-3">
-                                        <div className="text-xs text-green-100">Appointments</div>
-                                        <div className="text-xl font-bold">{appointments.length || 0}</div>
+                                        <div className="text-xs text-green-100">Upcoming</div>
+                                        <div className="text-xl font-bold">{upcomingAppointments.length}</div>
                                     </div>
                                     <div className="bg-white/10 rounded-2xl p-3">
                                         <div className="text-xs text-green-100">Prescriptions</div>
                                         <div className="text-xl font-bold">{0}</div>
                                     </div>
                                     <div className="bg-white/10 rounded-2xl p-3">
-                                        <div className="text-xs text-green-100">Favorites</div>
-                                        <div className="text-xl font-bold">{doctors.length || 0}</div>
+                                        <div className="text-xs text-green-100">Total Bookings</div>
+                                        <div className="text-xl font-bold">{appointments.length}</div>
                                     </div>
                                     <div className="bg-white/10 rounded-2xl p-3">
                                         <div className="text-xs text-green-100">Rewards</div>
@@ -142,49 +133,61 @@ const UserDashBoard = () => {
                             </div>
                         </div>
 
-                        <div className="grid md:grid-cols-3 gap-6">
-                            <div className="md:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">Upcoming Appointments</h3>
-                                    <button className="text-green-600 text-sm font-semibold">View all</button>
-                                </div>
-                                <div className="divide-y divide-gray-100">
-                                    {appointments.length === 0 && (
-                                        <div className="text-sm text-gray-500 py-2">No appointments scheduled. Book one now.</div>
-                                    )}
-                                    {appointments.map((appt, idx) => (
-                                        <div key={idx} className="py-3 flex items-center justify-between">
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">Upcoming Appointments</h3>
+                                <button onClick={() => setActiveTab('bookings')} className="text-green-600 text-sm font-semibold">View all</button>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {upcomingAppointments.length === 0 ? (
+                                    <div className="text-sm text-gray-500 py-2 text-center">No upcoming appointments.</div>
+                                ) : (
+                                    upcomingAppointments.slice(0, 3).map((appt) => (
+                                        <div key={appt._id} className="py-3 flex items-center justify-between">
                                             <div>
                                                 <div className="font-semibold text-gray-900">{appt.doctor?.fullname || 'Doctor'}</div>
                                                 <div className="text-sm text-gray-600">{new Date(appt.startTime).toLocaleString()}</div>
                                             </div>
-                                            <button 
-                                                onClick={() => navigate(`/video-call/${appt._id}`)}
-                                                className="text-sm bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                                            >
-                                                Join
-                                            </button>
+                                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                                appt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                                             }`}>{appt.status}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recommended Doctors</h3>
-                                <div className="space-y-4">
-                                    {(['Cardiologist','Dermatologist','Neurologist']).map((spec, i) => (
-                                        <div key={i} className="flex items-center justify-between">
-                                            <div>
-                                                <div className="font-semibold text-gray-900">Dr. Expert {i+1}</div>
-                                                <div className="text-sm text-gray-600">{spec}</div>
-                                            </div>
-                                            <button className="text-sm border px-3 py-1.5 rounded-lg">View</button>
-                                        </div>
-                                    ))}
-                                </div>
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>
                 );
+            case 'bookings':
+                 return (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                        <h2 className="font-semibold text-gray-900 mb-4">My Bookings</h2>
+                        <div className="divide-y divide-gray-100">
+                            {appointments.length === 0 ? (
+                                <div className="text-gray-500 text-sm py-2">No appointments found.</div>
+                            ) : (
+                                appointments.map((appt) => (
+                                <div key={appt._id} className="py-4 flex items-center justify-between">
+                                    <div>
+                                        <div className="font-semibold text-gray-900">{appt.doctor?.fullname || 'Doctor'}</div>
+                                        <div className="text-sm text-gray-600">
+                                            {new Date(appt.startTime).toLocaleDateString()}
+                                            {' @ '}
+                                            {new Date(appt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                    </div>
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                        appt.status === 'Completed' ? 'bg-gray-100 text-gray-600' :
+                                        appt.status === 'Cancelled' || appt.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                        appt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-green-100 text-green-700'
+                                    }`}>{appt.status}</span>
+                                </div>
+                            ))
+                            )}
+                        </div>
+                    </div>
+                 );
             case 'profile':
                  return (
                     <div className="space-y-6">
@@ -222,7 +225,6 @@ const UserDashBoard = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Desktop Navigation */}
             <nav className="hidden md:block bg-white border-b border-gray-200 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
@@ -260,7 +262,6 @@ const UserDashBoard = () => {
                 </div>
             </nav>
 
-            {/* Mobile Header */}
             <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
@@ -280,12 +281,10 @@ const UserDashBoard = () => {
                 </div>
             </header>
 
-            {/* Main Content */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
                 {renderContent()}
             </main>
 
-            {/* Mobile Bottom Navigation */}
             <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-50">
                 <div className="flex justify-around">
                     {navigationItems.map((item) => (

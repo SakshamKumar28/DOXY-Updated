@@ -68,12 +68,16 @@ const BookAppointment = () => {
 
             // Placeholder - replace with actual endpoint
             console.log('Booking appointment:', appointmentData);
-            
+
             // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            alert('Appointment booked successfully!');
+            const response = await api.post('/appointments/book');
+
+            if (response) {
+                console.log('Appointment booked successfully')
+            }
             navigate('/dashboard');
+
+
         } catch (err) {
             setError('Failed to book appointment');
         } finally {
@@ -119,11 +123,10 @@ const BookAppointment = () => {
                                 <div
                                     key={doctor._id}
                                     onClick={() => setSelectedDoctor(doctor)}
-                                    className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                                        selectedDoctor?._id === doctor._id
+                                    className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedDoctor?._id === doctor._id
                                             ? 'border-green-500 bg-green-50'
                                             : 'border-gray-200 hover:border-green-300'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
@@ -158,7 +161,7 @@ const BookAppointment = () => {
                     {/* Date & Time Selection */}
                     <div className="space-y-6">
                         <h2 className="text-lg font-semibold text-gray-900">Select Date & Time</h2>
-                        
+
                         {selectedDoctor ? (
                             <>
                                 {/* Date Selection */}
@@ -184,11 +187,10 @@ const BookAppointment = () => {
                                             <button
                                                 key={time}
                                                 onClick={() => setSelectedTime(time)}
-                                                className={`p-3 text-sm font-medium rounded-lg border-2 transition-all ${
-                                                    selectedTime === time
+                                                className={`p-3 text-sm font-medium rounded-lg border-2 transition-all ${selectedTime === time
                                                         ? 'border-green-500 bg-green-50 text-green-700'
                                                         : 'border-gray-200 hover:border-green-300'
-                                                }`}
+                                                    }`}
                                             >
                                                 {time}
                                             </button>
