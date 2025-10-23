@@ -40,10 +40,9 @@ const AuthWrapperForVideoCall = ({ children }) => {
         const intendedPath = window.location.pathname + window.location.search;
         return <Navigate to={`/role?action=login&redirect=${encodeURIComponent(intendedPath)}`} replace />;
     }
+    console.log(`AuthWrapper: Preparing to render VideoCall for role: ${userRole}`);
+ console.log(`AuthWrapper: Passing authenticatedUser ID: ${authenticatedUser?._id}`);
 
-    // If authenticated, clone the child (VideoCall) and pass user info as props
-    console.log(`AuthWrapper: Authenticated as ${userRole}, rendering children.`);
-    return React.cloneElement(children, { authenticatedUser, userRole });
+ return React.cloneElement(children, { authenticatedUser, userRole });
 };
-
 export default AuthWrapperForVideoCall;

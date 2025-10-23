@@ -1,11 +1,16 @@
-// frontend/src/pages/VideoCall.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Video, Mic, MicOff, VideoOff, PhoneOff, Clock, User, Stethoscope } from 'lucide-react'; // Added Stethoscope
-import axios from 'axios';
 import io from 'socket.io-client';
-import Peer from 'simple-peer'; // Import simple-peer
-import { useAuth } from '../hooks/useAuth'; // Import useAuth to get user ID
+import axios from 'axios'
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Mic, MicOff, PhoneOff, Stethoscope, User, Video, VideoOff } from 'lucide-react';
+// --- Potentially problematic import ---
+// Browsers might struggle with the default import if the library isn't CJS/ESM compatible for browsers without specific bundling steps.
+// Let's try importing the browser version explicitly if available,
+// or adjust bundling if needed. For now, we'll assume the standard import
+// should work after environment correction.
+import Peer from 'simple-peer';
+// Remove useAuth import - we get user info via props now
+// import { useAuth } from '../hooks/useAuth';
 
 const api = axios.create({
     baseURL: 'http://localhost:3000', // Ensure this points to backend base
@@ -13,12 +18,15 @@ const api = axios.create({
     headers: { 'Content-Type': 'application/json' }
 });
 
-const SOCKET_SERVER_URL = 'http://localhost:3000';
+const SOCKET_SERVER_URL = 'http://localhost:3000'; // Make sure this matches your backend port preference
 
-const VideoCall = () => {
+// Receive authenticatedUser and userRole as props
+const VideoCall = ({ authenticatedUser, userRole }) => {
     const navigate = useNavigate();
     const { appointmentId } = useParams();
-    const { user: currentUser } = useAuth(); // Get current user info
+
+    // Remove the local useAuth call
+    // const { user: currentUser } = useAuth();
 
     const [appointment, setAppointment] = useState(null);
     const [isVideoOn, setIsVideoOn] = useState(true);
@@ -27,40 +35,41 @@ const VideoCall = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [socketStatus, setSocketStatus] = useState('Initializing...');
-    const [peerStatus, setPeerStatus] = useState('Idle'); // Track peer connection
+    const [peerStatus, setPeerStatus] = useState('Idle');
 
     // Refs
     const socketRef = useRef(null);
-    const localVideoRef = useRef(null); // Ref for self-view video element
-    const remoteVideoRef = useRef(null); // Ref for participant's video element
-    const peerRef = useRef(null); // Ref for the simple-peer instance
-    const localStreamRef = useRef(null); // Ref to hold the local media stream
+    const localVideoRef = useRef(null);
+    const remoteVideoRef = useRef(null);
+    const peerRef = useRef(null);
+    const localStreamRef = useRef(null);
 
-    const currentUserId = currentUser?._id; // Get ID from auth hook
+    // Use the ID from the prop
+    const currentUserId = authenticatedUser?._id;
 
     useEffect(() => {
-        if (!currentUserId) {
-            setError("Could not identify user. Please log in again.");
+        // Essential check: Make sure we have the user info from props
+        if (!authenticatedUser || !userRole || !currentUserId) {
+            setError("Authentication information missing. Cannot start call.");
             setLoading(false);
-            return; // Don't proceed without user ID
+            console.error("VideoCall: authenticatedUser or userRole prop is missing!");
+            return;
         }
 
-        let timerIntervalId = null; // To store timer ID for cleanup
+        console.log(`VideoCall: Initializing for ${userRole} (${currentUserId})`);
 
-        // 1. Get User Media (Camera/Mic)
+        let timerIntervalId = null;
+
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
             .then(stream => {
-                localStreamRef.current = stream; // Store the stream
-                // Attach stream to local video element
+                localStreamRef.current = stream;
                 if (localVideoRef.current) {
                     localVideoRef.current.srcObject = stream;
-                    localVideoRef.current.style.display = 'block'; // Show local video
+                    localVideoRef.current.style.display = 'block';
                 }
 
-                // Only proceed if media access is granted
-                fetchAppointmentDetails(); // Fetch appointment details
+                fetchAppointmentDetails();
 
-                // 2. Initialize Socket Connection
                 socketRef.current = io(SOCKET_SERVER_URL, { transports: ['websocket'] });
                 const socket = socketRef.current;
                 setSocketStatus('Connecting...');
@@ -69,42 +78,54 @@ const VideoCall = () => {
                     setSocketStatus('Connected');
                     console.log('Socket connected:', socket.id);
                     if (appointmentId) {
-                        socket.emit('join-room', appointmentId, currentUserId);
-                        console.log(`Attempting to join room ${appointmentId} as user ${currentUserId}`);
+                        socket.emit('join-room', appointmentId, currentUserId, userRole);
+                        console.log(`Attempting to join room ${appointmentId} as ${userRole} ${currentUserId}`);
                     }
                 });
 
-                // --- Socket Event Listeners ---
-                socket.on('connect_error', (err) => { /* ... (error handling as before) ... */ });
-                socket.on('disconnect', (reason) => { /* ... (disconnect handling as before) ... */ });
+                socket.on('connect_error', (err) => {
+                     setSocketStatus('Connection Failed');
+                     setError(`Socket connection error: ${err.message}`);
+                     console.error('Socket connection error:', err);
+                 });
+                socket.on('disconnect', (reason) => {
+                     setSocketStatus(`Disconnected: ${reason}`);
+                     console.log('Socket disconnected:', reason);
+                 });
 
-                socket.on('user-joined', (otherUserId) => {
-                    console.log(`User ${otherUserId} joined the room. Initiating connection.`);
+                socket.on('user-joined', (joinedUserId, joinedUserRole) => {
+                    if (joinedUserId === currentUserId) return;
+                    console.log(`User ${joinedUserId} (${joinedUserRole || 'N/A'}) joined room. Initiating connection.`);
                     setPeerStatus('Connecting...');
-                    // Create a peer connection (caller)
                     const isInitiator = true;
                     createPeer(socket, isInitiator, stream);
                 });
 
                 socket.on('signal', (payload) => {
+                    if (payload.userId === currentUserId) return; // Ignore signals from self
                     console.log('Received signal from', payload.userId);
-                    if (peerRef.current) {
-                        // Pass the incoming signal to the existing peer instance
-                        peerRef.current.signal(payload.signal);
+                    const incomingSignal = payload.signal;
+
+                    if (peerRef.current && !peerRef.current.destroyed) {
+                        peerRef.current.signal(incomingSignal);
                     } else {
-                        // If no peer exists, create one (receiver)
-                        console.log('No peer exists, creating receiver peer.');
-                        setPeerStatus('Connecting...');
-                        const isInitiator = false;
-                        createPeer(socket, isInitiator, stream);
-                        // Signal after peer is created (important for receiver)
-                        if (peerRef.current) {
-                            peerRef.current.signal(payload.signal);
+                        if (incomingSignal.type === 'offer' || !peerRef.current) {
+                             console.log('No active peer, creating receiver peer.');
+                            setPeerStatus('Connecting...');
+                            const isInitiator = false;
+                            createPeer(socket, isInitiator, stream);
+                             // Need a slight delay for the peer object to be ready before signaling
+                            setTimeout(() => {
+                                if (peerRef.current && !peerRef.current.destroyed) {
+                                    peerRef.current.signal(incomingSignal);
+                                }
+                            }, 100);
+                        } else {
+                            console.warn("Received signal but peer is destroyed or signal type unexpected. Ignoring.");
                         }
                     }
                 });
 
-                // Start call timer after setup
                 timerIntervalId = startTimer();
 
             })
@@ -114,44 +135,40 @@ const VideoCall = () => {
                 setLoading(false);
             });
 
-        // --- Cleanup on component unmount ---
         return () => {
+             console.log("VideoCall Cleanup: Stopping timer, media, peer, socket.");
             clearInterval(timerIntervalId);
-            // Stop camera/mic tracks
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
+                localStreamRef.current = null;
             }
-            // Destroy peer connection
             if (peerRef.current) {
                 peerRef.current.destroy();
                 peerRef.current = null;
             }
-            // Disconnect socket
             if (socketRef.current) {
                 socketRef.current.disconnect();
                 socketRef.current = null;
             }
-            console.log("Cleanup complete.");
         };
-    }, [appointmentId, navigate, currentUserId]); // Add currentUserId
+    }, [appointmentId, navigate, authenticatedUser, userRole, currentUserId]); // Ensure props are dependencies
 
-    // --- Function to Create Peer Connection ---
     const createPeer = (socket, initiator, stream) => {
-        if (peerRef.current) {
-            console.log("Destroying existing peer connection before creating new one.");
-            peerRef.current.destroy(); // Destroy existing peer if any
+        if (peerRef.current && !peerRef.current.destroyed) {
+             console.log("Destroying existing valid peer connection before creating new one.");
+             peerRef.current.destroy();
         }
+        peerRef.current = null; // Clear ref
 
         console.log(`Creating Peer. Initiator: ${initiator}`);
         const peer = new Peer({
             initiator: initiator,
-            trickle: true, // Use trickle ICE for faster connection
-            stream: stream, // Provide the local stream immediately
+            trickle: true,
+            stream: stream,
         });
 
         peer.on('signal', (signalData) => {
             console.log('Generated signal, sending...');
-            // Send the signal data via Socket.IO
             socket.emit('signal', {
                 roomId: appointmentId,
                 userId: currentUserId,
@@ -161,229 +178,302 @@ const VideoCall = () => {
 
         peer.on('stream', (remoteStream) => {
             console.log('Received remote stream');
-            setPeerStatus('Connected');
-            // Attach remote stream to the remote video element
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = remoteStream;
-                remoteVideoRef.current.style.display = 'block'; // Show remote video
+             // Ensure the peer hasn't been destroyed in the meantime
+            if (peerRef.current === peer && !peer.destroyed) {
+                setPeerStatus('Connected');
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = remoteStream;
+                    remoteVideoRef.current.style.display = 'block';
+                }
+            } else {
+                 console.log("Received stream for an old/destroyed peer. Ignoring.");
             }
         });
 
         peer.on('connect', () => {
-            console.log('Peer connection established');
-            setPeerStatus('Connected');
+            if (peerRef.current === peer && !peer.destroyed) {
+                 console.log('Peer connection established');
+                 setPeerStatus('Connected');
+             } else {
+                  console.log('Peer connected but is no longer the active peer instance.');
+             }
         });
 
         peer.on('close', () => {
-            console.log('Peer connection closed');
-            setPeerStatus('Disconnected');
-            // Optionally reset remote video
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = null;
-                remoteVideoRef.current.style.display = 'none';
-            }
-            peerRef.current = null; // Clear the ref
-        });
+             console.log('Peer connection closed');
+              if (peerRef.current === peer) {
+                  setPeerStatus('Disconnected');
+                  if (remoteVideoRef.current) {
+                      remoteVideoRef.current.srcObject = null;
+                      remoteVideoRef.current.style.display = 'none';
+                  }
+                  peerRef.current = null;
+              } else {
+                   console.log('An older peer instance closed.');
+              }
+         });
 
         peer.on('error', (err) => {
-            console.error('Peer connection error:', err);
-            setError(`Connection error: ${err.message}. Try refreshing.`);
-            setPeerStatus('Error');
+             console.error('Peer connection error:', err);
+             if (peerRef.current === peer && !peer.destroyed) {
+                 setError(`Connection error: ${err.message}. Try refreshing.`);
+                 setPeerStatus('Error');
+             }
         });
 
-        peerRef.current = peer; // Store the peer instance
+        peerRef.current = peer;
     };
 
-    // --- Other functions (fetchAppointmentDetails, startTimer, formatTime) remain similar ---
-    const fetchAppointmentDetails = async () => { /* ... (as before) ... */ };
-    const startTimer = () => { /* ... (as before) ... */ };
-    const formatTime = (seconds) => { /* ... (as before) ... */ };
+    const fetchAppointmentDetails = async () => {
+        // setLoading(true); // setLoading is already true from initial state or parent effect
+        setError('');
+        try {
+            const response = await api.get(`/api/appointments/${appointmentId}`);
+            if (!response.data?.success || !response.data?.data?.appointment) {
+                throw new Error('Appointment not found or invalid response');
+            }
+            const appt = response.data.data.appointment;
+            setAppointment(appt);
+
+            if (appt.user?._id !== currentUserId && appt.doctor?._id !== currentUserId) {
+                 throw new Error("You are not authorized to join this call.");
+            }
+
+            if (!['Scheduled', 'Ongoing'].includes(appt.status)) {
+                 setError('This call is not currently active or has ended.');
+                 // Optionally clear stream and disconnect peer/socket early?
+            }
+        } catch (err) {
+             console.error("Failed to fetch appointment:", err);
+             setError(err.response?.data?.message || err.message || 'Failed to load appointment details');
+        } finally {
+            // Only set loading false if it was the initial load,
+            // subsequent fetches shouldn't reset the main loading state
+             if(loading) setLoading(false);
+        }
+    };
 
 
-    // --- Modified handleEndCall for cleanup ---
+    const startTimer = () => {
+        const intervalId = setInterval(() => {
+            setCallDuration(prev => prev + 1);
+        }, 1000);
+        return intervalId;
+    };
+
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // --- Corrected handleEndCall using userRole prop ---
     const handleEndCall = async () => {
-        console.log("Ending call...");
-        // Stop media tracks
+        console.log("--- handleEndCall ---");
+        console.log("userRole prop received:", userRole); // Add this log
+        console.log("authenticatedUser prop ID:", authenticatedUser?._id); // Add this log
+
+        console.log("Ending call procedure...");
+        // Stop media tracks FIRST
         if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => track.stop());
-        }
-        // Destroy peer connection
-        if (peerRef.current) {
-            peerRef.current.destroy();
-            peerRef.current = null;
-        }
-        // Disconnect socket
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-            socketRef.current = null;
+            localStreamRef.current.getTracks().forEach(track => {
+                 console.log(`Stopping track: ${track.kind}`);
+                 track.stop();
+            });
+            localStreamRef.current = null; // Clear ref
+        } else {
+             console.log("No local stream found to stop.");
         }
 
-        // --- Determine correct dashboard path ---
-        // Check if currentUser has doctor-specific fields (like 'specialisation')
-        // Or ideally, your useAuth hook should return a 'role' property
-        const isDoctor = currentUser && currentUser.specialisation; // Adjust this check if needed
-        const redirectPath = isDoctor ? '/doctor/dashboard' : '/dashboard';
+        // Destroy peer connection
+        if (peerRef.current && !peerRef.current.destroyed) {
+             console.log("Destroying peer connection...");
+            peerRef.current.destroy();
+        } else {
+             console.log("No active peer connection to destroy.");
+        }
+        peerRef.current = null; // Clear ref regardless
+
+        // Disconnect socket
+        if (socketRef.current && socketRef.current.connected) {
+             console.log("Disconnecting socket...");
+            socketRef.current.disconnect();
+        } else {
+             console.log("No active socket connection to disconnect.");
+        }
+        socketRef.current = null; // Clear ref regardless
+
+
+        // --- Use userRole prop for navigation ---
+        const redirectPath = userRole === 'doctor' ? '/doctor/dashboard' : '/dashboard';
         console.log(`Navigating to ${redirectPath} after call end.`);
         // -----------------------------------------
 
-        // Navigate after cleanup
-        navigate(redirectPath);
+        navigate(redirectPath); // Navigate after cleanup attempt
     };
 
-    // --- Updated Media Control Functions ---
-    const toggleAudio = () => {
-        if (localStreamRef.current) {
-            const audioTrack = localStreamRef.current.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                setIsAudioOn(audioTrack.enabled);
-                console.log("Audio Toggled:", audioTrack.enabled);
-            }
-        }
-    };
 
-    const toggleVideo = () => {
-        if (localStreamRef.current) {
-            const videoTrack = localStreamRef.current.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                setIsVideoOn(videoTrack.enabled);
-                console.log("Video Toggled:", videoTrack.enabled);
-                // Show/hide local video placeholder if track is disabled/enabled
-                if (localVideoRef.current) {
-                    localVideoRef.current.style.visibility = videoTrack.enabled ? 'visible' : 'hidden';
-                }
-            }
-        }
-        // Toggle the visual state even if stream isn't ready yet
-        else {
-            setIsVideoOn(prev => !prev);
-        }
-    };
+    const toggleAudio = () => { /* ... (as before) ... */ };
+    const toggleVideo = () => { /* ... (as before) ... */ };
 
-    // --- Loading and Error States (remain similar) ---
-    if (loading) { /* ... (as before) ... */ }
-    if (error) { /* ... (as before, maybe add peerStatus) ... */ }
+     if (!authenticatedUser && !loading) { // Check if props are missing after initial load attempt
+         return (
+             <div className="flex items-center justify-center h-screen bg-gray-900 text-red-500">
+                 Authentication Error. Cannot load call details.
+             </div>
+         );
+     }
 
-    // --- Render Logic (remain similar, but assign refs to video elements) ---
-    const remoteParticipant = appointment?.doctor?._id === currentUserId ? appointment?.user : appointment?.doctor;
-    const remoteParticipantName = remoteParticipant?.fullname || remoteParticipant?.fullName || 'Participant'; // Handle both doctor/user names
-    const remoteParticipantDetail = remoteParticipant?.specialisation || 'Patient'; // Show specialization or 'Patient'
+
+    if (loading) {
+         return (
+             <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white">
+                 <div className="w-16 h-16 border-4 border-gray-600 border-t-green-500 rounded-full animate-spin mb-4"></div>
+                 Loading Call...
+                 <p className="text-xs text-gray-500 mt-2">{socketStatus}</p>
+             </div>
+         );
+     }
+    if (error) {
+         return (
+             <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+                 <div className="text-center p-6 bg-gray-800 rounded-lg max-w-sm">
+                     <p className="text-red-500 mb-4">{error}</p>
+                     <button onClick={() => navigate(userRole === 'doctor' ? '/doctor/dashboard' : '/dashboard')} className="text-green-500 hover:text-green-400 text-sm">
+                         Back to Dashboard
+                     </button>
+                     <p className="text-xs text-gray-500 mt-4">Socket: {socketStatus} | Peer: {peerStatus}</p>
+                 </div>
+             </div>
+         );
+     }
+
+    // Determine remote participant using authenticatedUser prop
+    const remoteParticipant = appointment
+        ? (appointment.user?._id === currentUserId ? appointment.doctor : appointment.user)
+        : null;
+    const remoteParticipantName = remoteParticipant?.fullname || remoteParticipant?.fullName || 'Participant';
+    const remoteParticipantDetail = remoteParticipant?.specialisation || (remoteParticipant ? 'Patient' : 'Connecting...');
 
 
     return (
         <div className="h-screen bg-gray-900 flex flex-col">
             {/* Header */}
-            <div className="bg-gray-800 px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center space-x-2 md:space-x-4">
-                    {/* ... (Live indicator, Timer) ... */}
+             <div className="bg-gray-800 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between text-xs md:text-sm">
+                <div className="flex items-center space-x-2 md:space-x-4 flex-wrap">
+                    <div className="flex items-center space-x-1">
+                         <div className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full animate-pulse"></div>
+                         <span className="text-white font-semibold hidden sm:inline">Live</span>
+                    </div>
                     <span className="text-gray-400">•</span>
-                    <span className="text-xs text-gray-500">{socketStatus}</span>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-xs text-gray-500">{peerStatus}</span>
+                    <span className="text-gray-400">{formatTime(callDuration)}</span>
+                    <span className="text-gray-400 hidden sm:inline">•</span>
+                    <span className="text-gray-500 hidden sm:inline" title={`Socket: ${socketStatus}`}>Sock: {socketStatus.substring(0,4)}..</span>
+                     <span className="text-gray-400 hidden sm:inline">•</span>
+                    <span className="text-gray-500 hidden sm:inline" title={`Peer: ${peerStatus}`}>Peer: {peerStatus}</span>
                 </div>
-                <div className="text-white text-sm md:text-base flex items-center">
-                    {/* ... (Participant Name) ... */}
+                <div className="text-white text-right flex items-center">
+                     {remoteParticipant?.specialisation ? <Stethoscope size={14} className="inline mr-1 opacity-75" /> : <User size={14} className="inline mr-1 opacity-75" />}
+                    <span className="truncate max-w-[150px] md:max-w-xs">{remoteParticipantName}</span>
                 </div>
             </div>
 
             {/* Video Area */}
             <div className="flex-1 relative overflow-hidden">
-                {/* Remote Video (Participant) */}
+                {/* Remote Video */}
                 <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
-                    {/* Placeholder shown until stream is connected */}
-                    <div className="text-center text-white" style={{ display: peerStatus !== 'Connected' ? 'block' : 'none' }}>
-                        <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <User size={48} />
-                        </div>
-                        <h2 className="text-lg md:text-xl font-semibold">{remoteParticipantName}</h2>
-                        <p className="text-gray-400 text-sm">{remoteParticipantDetail}</p>
-                        <p className="text-xs text-gray-500 mt-2">({peerStatus})</p>
+                     <div className="text-center text-white" style={{ display: peerStatus !== 'Connected' ? 'block' : 'none' }}>
+                         <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-gray-600">
+                             <User size={48} className="text-gray-500"/>
+                         </div>
+                         <h2 className="text-lg md:text-xl font-semibold">{remoteParticipantName}</h2>
+                         <p className="text-gray-400 text-sm">{remoteParticipantDetail}</p>
+                         <p className="text-xs text-gray-500 mt-2 animate-pulse">{peerStatus}...</p>
                     </div>
-                    {/* Actual Remote Video Stream */}
                     <video
-                        ref={remoteVideoRef} // Assign ref
+                        ref={remoteVideoRef}
                         autoPlay
                         playsInline
-                        className="absolute inset-0 w-full h-full object-cover"
-                        style={{ display: peerStatus === 'Connected' ? 'block' : 'none' }} // Show only when connected
+                        className="absolute inset-0 w-full h-full object-cover bg-black" // Added bg-black
+                        style={{ display: peerStatus === 'Connected' ? 'block' : 'none' }}
+                        onError={(e) => console.error("Remote video error:", e)} // Add error handler
                     />
                 </div>
 
-                {/* Self Video (User) */}
+                {/* Self Video */}
                 <div className="absolute top-4 right-4 w-32 h-24 md:w-48 md:h-36 bg-gray-700 rounded-lg overflow-hidden border-2 border-gray-600 shadow-lg">
-                    {/* Actual Local Video Stream */}
                     <video
-                        ref={localVideoRef} // Assign ref
+                        ref={localVideoRef}
                         autoPlay
                         playsInline
-                        muted // Mute self-view
-                        className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1]" // Flip horizontally
-                        style={{ display: 'none' }} // Hidden initially, shown when stream is ready
+                        muted
+                        className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] bg-black" // Added bg-black
+                        style={{ display: localStreamRef.current ? 'block' : 'none', visibility: isVideoOn ? 'visible' : 'hidden' }} // Control visibility
+                        onError={(e) => console.error("Local video error:", e)} // Add error handler
                     />
-                    {/* Overlay if video is off */}
-                    {!isVideoOn && (
+                     {/* Overlay if video is off */}
+                     {!isVideoOn && localStreamRef.current && (
                         <div className="absolute inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center">
                             <div className="text-center text-white text-xs">
                                 <VideoOff size={24} className="mx-auto mb-1" />
                                 Video Off
                             </div>
                         </div>
-                    )}
-                    {/* Placeholder if stream not ready */}
-                    {!localStreamRef.current && (
-                        <div className="absolute inset-0 bg-gray-600 flex items-center justify-center">
+                     )}
+                     {/* Placeholder if stream not ready */}
+                     {!localStreamRef.current && (
+                         <div className="absolute inset-0 bg-gray-600 flex items-center justify-center">
                             <div className="text-center text-white text-xs">
                                 <User size={24} className="mx-auto mb-1" />
                                 You
                             </div>
                         </div>
-                    )}
+                     )}
                 </div>
             </div>
 
             {/* Controls */}
-            <div className="bg-gray-800 px-6 py-6">
-                <div className="flex items-center justify-center space-x-4">
-                    {/* Audio Toggle Button */}
+            <div className="bg-gray-800 px-6 py-4 md:py-6">
+                 <div className="flex items-center justify-center space-x-4">
+                     {/* Audio Toggle Button */}
                     <button
                         onClick={toggleAudio}
-                        className={`p-4 rounded-full transition-colors ${isAudioOn
+                        className={`p-3 md:p-4 rounded-full transition-colors ${isAudioOn
                                 ? 'bg-gray-700 hover:bg-gray-600'
                                 : 'bg-red-600 hover:bg-red-700'
                             }`}
                         aria-label={isAudioOn ? 'Mute audio' : 'Unmute audio'}
                     >
                         {isAudioOn ? (
-                            <Mic size={24} className="text-white" />
+                            <Mic size={20} md:size={24} className="text-white" />
                         ) : (
-                            <MicOff size={24} className="text-white" />
+                            <MicOff size={20} md:size={24} className="text-white" />
                         )}
                     </button>
 
                     {/* Video Toggle Button */}
                     <button
                         onClick={toggleVideo}
-                        className={`p-4 rounded-full transition-colors ${isVideoOn
+                        className={`p-3 md:p-4 rounded-full transition-colors ${isVideoOn
                                 ? 'bg-gray-700 hover:bg-gray-600'
                                 : 'bg-red-600 hover:bg-red-700'
                             }`}
                         aria-label={isVideoOn ? 'Turn off video' : 'Turn on video'}
                     >
                         {isVideoOn ? (
-                            <Video size={24} className="text-white" />
+                            <Video size={20} md:size={24} className="text-white" />
                         ) : (
-                            <VideoOff size={24} className="text-white" />
+                            <VideoOff size={20} md:size={24} className="text-white" />
                         )}
                     </button>
 
                     {/* End Call Button */}
                     <button
                         onClick={handleEndCall}
-                        className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
+                        className="p-3 md:p-4 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
                         aria-label="End call"
                     >
-                        <PhoneOff size={24} className="text-white" />
+                        <PhoneOff size={20} md:size={24} className="text-white" />
                     </button>
                 </div>
             </div>
@@ -392,3 +482,4 @@ const VideoCall = () => {
 };
 
 export default VideoCall;
+
