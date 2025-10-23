@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth'; //
+import { useAuth } from '../hooks/useAuth'; // [cite: sakshamkumar28/doxy-updated/DOXY-Updated-d8274377137c426ade7ad3fb508a00bdbf7e8137/frontend/src/hooks/useAuth.js]
 
 const FullPageLoader = () => ( // Simple loader
     <div className="flex items-center justify-center h-screen">
@@ -10,25 +10,40 @@ const FullPageLoader = () => ( // Simple loader
 
 const AuthWrapperForVideoCall = ({ children }) => {
     // Check authentication status for both user types
-    const { user: loggedInUser, loading: userLoading, error: userError } = useAuth('user'); //
-    const { user: loggedInDoctor, loading: doctorLoading, error: doctorError } = useAuth('doctor'); //
+    const { user: loggedInUser, loading: userLoading, error: userError } = useAuth('user'); // [cite: sakshamkumar28/doxy-updated/DOXY-Updated-d8274377137c426ade7ad3fb508a00bdbf7e8137/frontend/src/hooks/useAuth.js]
+    const { user: loggedInDoctor, loading: doctorLoading, error: doctorError } = useAuth('doctor'); // [cite: sakshamkumar28/doxy-updated/DOXY-Updated-d8274377137c426ade7ad3fb508a00bdbf7e8137/frontend/src/hooks/useAuth.js]
 
     const isLoading = userLoading || doctorLoading;
-    const isAuthenticated = !!loggedInUser || !!loggedInDoctor; // True if either is logged in
 
     if (isLoading) {
         return <FullPageLoader />;
     }
 
-    // If neither is authenticated after loading, redirect to role selection
-    if (!isAuthenticated) {
-        console.log("AuthWrapper: Not authenticated, redirecting to role select.");
-        return <Navigate to="/role?action=login" replace />; // Redirect to choose login type
+    // Determine who is authenticated and their role
+    let authenticatedUser = null;
+    let userRole = null;
+
+    if (loggedInDoctor) {
+        authenticatedUser = loggedInDoctor;
+        userRole = 'doctor';
+        console.log("AuthWrapper: Authenticated as DOCTOR:", authenticatedUser?._id);
+    } else if (loggedInUser) {
+        authenticatedUser = loggedInUser;
+        userRole = 'user';
+        console.log("AuthWrapper: Authenticated as USER:", authenticatedUser?._id);
     }
 
-    // If authenticated as either user or doctor, render the VideoCall component
-    console.log("AuthWrapper: Authenticated, rendering children.");
-    return children;
+    // If neither is authenticated after loading, redirect to role selection
+    if (!authenticatedUser) {
+        console.log("AuthWrapper: Not authenticated, redirecting to role select.");
+        // Redirect to choose login type, passing the intended destination
+        const intendedPath = window.location.pathname + window.location.search;
+        return <Navigate to={`/role?action=login&redirect=${encodeURIComponent(intendedPath)}`} replace />;
+    }
+
+    // If authenticated, clone the child (VideoCall) and pass user info as props
+    console.log(`AuthWrapper: Authenticated as ${userRole}, rendering children.`);
+    return React.cloneElement(children, { authenticatedUser, userRole });
 };
 
 export default AuthWrapperForVideoCall;
