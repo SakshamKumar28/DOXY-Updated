@@ -1,17 +1,18 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth'; // [cite: sakshamkumar28/doxy-updated/DOXY-Updated-d8274377137c426ade7ad3fb508a00bdbf7e8137/frontend/src/hooks/useAuth.js]
+// Changed back to relative path to fix build error
+import { useAuth } from '../hooks/useAuth';
 
-const FullPageLoader = () => ( // Simple loader
+const FullPageLoader = () => (
     <div className="flex items-center justify-center h-screen">
         <div className="w-16 h-16 border-4 border-green-200 border-t-green-500 rounded-full animate-spin"></div>
     </div>
 );
 
-const AuthWrapperForVideoCall = ({ children }) => {
-    // Check authentication status for both user types
-    const { user: loggedInUser, loading: userLoading, error: userError } = useAuth('user'); // [cite: sakshamkumar28/doxy-updated/DOXY-Updated-d8274377137c426ade7ad3fb508a00bdbf7e8137/frontend/src/hooks/useAuth.js]
-    const { user: loggedInDoctor, loading: doctorLoading, error: doctorError } = useAuth('doctor'); // [cite: sakshamkumar28/doxy-updated/DOXY-Updated-d8274377137c426ade7ad3fb508a00bdbf7e8137/frontend/src/hooks/useAuth.js]
+// Changed to accept a 'render' prop instead of 'children'
+const AuthWrapperForVideoCall = ({ render }) => {
+    const { user: loggedInUser, loading: userLoading, error: userError } = useAuth('user');
+    const { user: loggedInDoctor, loading: doctorLoading, error: doctorError } = useAuth('doctor');
 
     const isLoading = userLoading || doctorLoading;
 
@@ -19,7 +20,6 @@ const AuthWrapperForVideoCall = ({ children }) => {
         return <FullPageLoader />;
     }
 
-    // Determine who is authenticated and their role
     let authenticatedUser = null;
     let userRole = null;
 
@@ -33,16 +33,31 @@ const AuthWrapperForVideoCall = ({ children }) => {
         console.log("AuthWrapper: Authenticated as USER:", authenticatedUser?._id);
     }
 
-    // If neither is authenticated after loading, redirect to role selection
     if (!authenticatedUser) {
         console.log("AuthWrapper: Not authenticated, redirecting to role select.");
-        // Redirect to choose login type, passing the intended destination
         const intendedPath = window.location.pathname + window.location.search;
         return <Navigate to={`/role?action=login&redirect=${encodeURIComponent(intendedPath)}`} replace />;
     }
-    console.log(`AuthWrapper: Preparing to render VideoCall for role: ${userRole}`);
- console.log(`AuthWrapper: Passing authenticatedUser ID: ${authenticatedUser?._id}`);
 
- return React.cloneElement(children, { authenticatedUser, userRole });
+    console.log(`AuthWrapper: Calling render prop for role: ${userRole}`);
+    console.log(`AuthWrapper: Passing authenticatedUser ID: ${authenticatedUser?._id}`);
+
+    // Call the render prop function, passing the authenticated data
+    // Ensure the 'render' prop is actually a function before calling it
+    if (typeof render !== 'function') {
+        console.error("AuthWrapper Error: 'render' prop is not a function!");
+        // Render an error message or null instead of crashing
+        return <div className="h-screen bg-gray-900 text-red-500 flex items-center justify-center">Error: Invalid component setup in App.jsx for Video Call route.</div>;
+    }
+
+    try {
+        return render({ authenticatedUser, userRole });
+    } catch (e) {
+         console.error("AuthWrapper Error: Error occurred while calling the render prop:", e);
+         // Render an error message if the render prop itself throws an error
+         return <div className="h-screen bg-gray-900 text-red-500 flex items-center justify-center">Error rendering video call component. Check console.</div>;
+    }
 };
+
 export default AuthWrapperForVideoCall;
+
