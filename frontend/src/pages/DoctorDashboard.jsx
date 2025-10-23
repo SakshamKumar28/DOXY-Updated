@@ -78,7 +78,7 @@ const DoctorDashboard = () => {
     };
 
     const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    
+
     const handleAddTimeSlot = (dayIndex) => {
         const updatedAvailability = JSON.parse(JSON.stringify(availability));
         let daySchedule = updatedAvailability.find(d => d.dayOfWeek === dayIndex);
@@ -126,7 +126,7 @@ const DoctorDashboard = () => {
             setAvailabilityLoading(false);
         }
     };
-    
+
     const handleCancelEditAvailability = async () => {
          setIsEditingAvailability(false);
          setAvailabilityError('');
@@ -147,7 +147,7 @@ const DoctorDashboard = () => {
         const url = `/api/appointments/${apptId}/${action}`;
         try {
             await api.put(url);
-            await fetchData();
+            await fetchData(); // Refetch data to update the list
             alert(`Appointment ${action === 'confirm' ? 'confirmed' : 'rejected'} successfully!`);
         } catch (err) {
             console.error(`Failed to ${action} appointment:`, err);
@@ -253,7 +253,7 @@ const DoctorDashboard = () => {
                                 <div className="text-gray-500 text-sm py-2">No appointments found.</div>
                             ) : (
                                 appointments
-                                    .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+                                    .sort((a, b) => new Date(b.startTime) - new Date(a.startTime)) // Sort by most recent first
                                     .map((appt) => (
                                     <div key={appt._id} className="py-4 flex items-center justify-between">
                                         <div>
@@ -358,94 +358,104 @@ const DoctorDashboard = () => {
                      </div>
                  )}
 
-                 <div className="bg-white rounded-2xl border border-gray-100 p-6 mt-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="font-semibold text-gray-900 flex items-center">
-                            Pending Appointment Requests
-                            {pendingAppointments.length > 0 && (
-                                <span className="ml-2 bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                                    {pendingAppointments.length}
-                                </span>
-                            )}
-                        </h2>
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                        {pendingAppointments.length === 0 ? (
-                            <div className="text-gray-500 text-sm py-4 text-center">No pending requests.</div>
-                        ) : (
-                            pendingAppointments.map((appt) => (
-                                <div key={appt._id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                                    <div className="mb-2 sm:mb-0">
-                                        <div className="font-semibold text-gray-900">{appt.user?.fullName || 'Patient'}</div>
-                                        <div className="text-sm text-gray-600">
-                                            {new Date(appt.startTime).toLocaleDateString()}
-                                            {' @ '}
-                                            {new Date(appt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                 {/* Overview Specific Sections */}
+                 {activeView === 'overview' && (
+                     <>
+                        {/* Pending Requests */}
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="font-semibold text-gray-900 flex items-center">
+                                    Pending Appointment Requests
+                                    {pendingAppointments.length > 0 && (
+                                        <span className="ml-2 bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                            {pendingAppointments.length}
+                                        </span>
+                                    )}
+                                </h2>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {pendingAppointments.length === 0 ? (
+                                    <div className="text-gray-500 text-sm py-4 text-center">No pending requests.</div>
+                                ) : (
+                                    pendingAppointments.map((appt) => (
+                                        <div key={appt._id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                                            <div className="mb-2 sm:mb-0">
+                                                <div className="font-semibold text-gray-900">{appt.user?.fullName || 'Patient'}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {new Date(appt.startTime).toLocaleDateString()}
+                                                    {' @ '}
+                                                    {new Date(appt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2 mt-2 sm:mt-0 w-full sm:w-auto">
+                                                {actionLoading[appt._id] ? (
+                                                    <MiniLoader />
+                                                ) : (
+                                                    <>
+                                                        <button onClick={() => handleAppointmentAction(appt._id, 'reject')} disabled={actionLoading[appt._id]} className="flex-1 sm:flex-none flex items-center justify-center space-x-1 bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm hover:bg-red-200 transition disabled:opacity-50" title="Reject Request">
+                                                            <X size={16} />
+                                                            <span>Reject</span>
+                                                        </button>
+                                                        <button onClick={() => handleAppointmentAction(appt._id, 'confirm')} disabled={actionLoading[appt._id]} className="flex-1 sm:flex-none flex items-center justify-center space-x-1 bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm hover:bg-green-200 transition disabled:opacity-50" title="Confirm Appointment">
+                                                            <Check size={16} />
+                                                            <span>Accept</span>
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex items-center space-x-2 mt-2 sm:mt-0 w-full sm:w-auto">
-                                        {actionLoading[appt._id] ? (
-                                            <MiniLoader />
-                                        ) : (
-                                            <>
-                                                <button onClick={() => handleAppointmentAction(appt._id, 'reject')} disabled={actionLoading[appt._id]} className="flex-1 sm:flex-none flex items-center justify-center space-x-1 bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm hover:bg-red-200 transition disabled:opacity-50" title="Reject Request">
-                                                    <X size={16} />
-                                                    <span>Reject</span>
-                                                </button>
-                                                <button onClick={() => handleAppointmentAction(appt._id, 'confirm')} disabled={actionLoading[appt._id]} className="flex-1 sm:flex-none flex items-center justify-center space-x-1 bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm hover:bg-green-200 transition disabled:opacity-50" title="Confirm Appointment">
-                                                    <Check size={16} />
-                                                    <span>Accept</span>
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
 
-                 <div className="bg-white rounded-2xl border border-gray-100 p-6 mt-6">
-                     <div className="flex items-center justify-between mb-4">
-                         <h2 className="font-semibold text-gray-900">Today's Scheduled Appointments</h2>
-                         <button onClick={() => setActiveView('appointments')} className="text-sm text-green-600 hover:text-green-700 font-semibold">View All</button>
-                     </div>
-                     <div className="divide-y divide-gray-100">
-                         {todaysAppointments.length === 0 ? (
-                             <div className="text-gray-500 text-sm py-4 text-center">No appointments scheduled for today.</div>
-                         ) : (
-                             todaysAppointments.map((appt) => (
-                                 <div key={appt._id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                                       <div className="mb-2 sm:mb-0">
-                                          <div className="font-semibold text-gray-900">{appt.user?.fullName || 'Patient'}</div>
-                                          <div className="text-sm text-gray-600">
-                                              {new Date(appt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                              {' - '}
-                                              {new Date(appt.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                          </div>
-                                           <span className={`mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${appt.status === 'Ongoing' ? 'bg-blue-100 text-blue-700 animate-pulse' : 'bg-green-100 text-green-700'}`}>{appt.status}</span>
-                                      </div>
-                                     {(appt.status === 'Scheduled' || appt.status === 'Ongoing') && (
-                                         <div className="flex items-center space-x-2 mt-2 sm:mt-0 w-full sm:w-auto">
-                                             <button className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700 transition">
-                                                 <Video size={16} />
-                                                 <span>{appt.status === 'Ongoing' ? 'Join Call' : 'Start Call'}</span>
-                                             </button>
-                                             <button className="flex-1 sm:flex-none flex items-center justify-center space-x-2 border px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
-                                                 <FileText size={16} />
-                                                 <span>Prescription</span>
-                                             </button>
-                                         </div>
-                                     )}
-                                 </div>
-                             ))
-                         )}
-                     </div>
-                 </div>
+                        {/* Today's Appointments */}
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="font-semibold text-gray-900">Today's Scheduled Appointments</h2>
+                                <button onClick={() => setActiveView('appointments')} className="text-sm text-green-600 hover:text-green-700 font-semibold">View All</button>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {todaysAppointments.length === 0 ? (
+                                    <div className="text-gray-500 text-sm py-4 text-center">No appointments scheduled for today.</div>
+                                ) : (
+                                    todaysAppointments.map((appt) => (
+                                        <div key={appt._id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                                            <div className="mb-2 sm:mb-0">
+                                                <div className="font-semibold text-gray-900">{appt.user?.fullName || 'Patient'}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {new Date(appt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    {' - '}
+                                                    {new Date(appt.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                                <span className={`mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${appt.status === 'Ongoing' ? 'bg-blue-100 text-blue-700 animate-pulse' : 'bg-green-100 text-green-700'}`}>{appt.status}</span>
+                                            </div>
+                                            {(appt.status === 'Scheduled' || appt.status === 'Ongoing') && (
+                                                <div className="flex items-center space-x-2 mt-2 sm:mt-0 w-full sm:w-auto">
+                                                    {/* --- Updated Button with onClick --- */}
+                                                    <button
+                                                        onClick={() => navigate(`/video-call/${appt._id}`)} // <-- ADDED THIS LINE
+                                                        className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700 transition"
+                                                    >
+                                                        <Video size={16} />
+                                                        <span>{appt.status === 'Ongoing' ? 'Join Call' : 'Start Call'}</span>
+                                                    </button>
+                                                    <button className="flex-1 sm:flex-none flex items-center justify-center space-x-2 border px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                                                        <FileText size={16} />
+                                                        <span>Prescription</span>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </>
+                 )}
             </main>
         </div>
     );
 }
 
 export default DoctorDashboard;
-

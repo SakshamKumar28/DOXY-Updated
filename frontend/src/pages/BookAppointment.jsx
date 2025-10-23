@@ -57,29 +57,32 @@ const BookAppointment = () => {
 
         try {
             const startTime = new Date(`${selectedDate}T${selectedTime}:00`);
-            const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour later
+            // endTime is calculated automatically on the backend now, so we don't need to send it.
+            // const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour later
 
+            // --- Corrected Payload ---
             const appointmentData = {
-                doctor: selectedDoctor._id,
+                doctorId: selectedDoctor._id, // Use 'doctorId' key
                 startTime: startTime.toISOString(),
-                endTime: endTime.toISOString(),
-                type: 'Video'
+                // 'type' defaults to 'Video' on backend, no need to send unless overriding
             };
 
-            // Placeholder - replace with actual endpoint
             console.log('Booking appointment:', appointmentData);
 
-            // Simulate API call
-            const response = await api.post('/appointments/book');
+            // --- Pass data to api.post ---
+            const response = await api.post('/appointments/book', appointmentData); // Send the data
 
-            if (response) {
-                console.log('Appointment booked successfully')
+            if (response.data?.success) { // Check response structure
+                console.log('Appointment booked successfully:', response.data);
+                alert('Appointment request submitted successfully! Waiting for doctor confirmation.'); // Give user feedback
+                navigate('/dashboard');
+            } else {
+                 throw new Error(response.data?.message || 'Booking request failed');
             }
-            navigate('/dashboard');
-
 
         } catch (err) {
-            setError('Failed to book appointment');
+            console.error("Booking failed:", err); // Log the error
+            setError(err.response?.data?.message || err.message || 'Failed to book appointment'); // Show more specific error if available
         } finally {
             setBookingLoading(false);
         }
