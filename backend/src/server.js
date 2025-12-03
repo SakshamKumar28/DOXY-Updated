@@ -14,11 +14,18 @@ import appointmentRoutes from './routes/appointment.route.js';
 
 dotenv.config();
 
+const clientUrl = process.env.CLIENT_URL;
+
+if (!clientUrl) {
+    console.error("FATAL ERROR: CLIENT_URL is not defined in .env");
+    process.exit(1);
+}
+
 const app = express();
 const server = http.createServer(app); // Create HTTP server from Express app
 const io = new Server(server, { // Initialize Socket.IO with the HTTP server
     cors: {
-        origin: process.env.CLIENT_URL,
+        origin: clientUrl,
         methods: ["GET", "POST", "PUT", "DELETE"],
         credentials: true
     }
@@ -28,7 +35,7 @@ const io = new Server(server, { // Initialize Socket.IO with the HTTP server
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-    origin: process.env.CLIENT_URL,
+    origin: clientUrl,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));

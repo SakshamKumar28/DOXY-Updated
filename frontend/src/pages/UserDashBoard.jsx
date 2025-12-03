@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
     Home, Calendar, Stethoscope, User, Bell, Search, Video, Phone, MessageCircle,
-    Clock, Star, ChevronRight, Bot, FileText, Heart, Activity, Shield, LogOut
+    Clock, Star, ChevronRight, Bot, FileText, Heart, Activity, Shield, LogOut,Settings
 } from 'lucide-react';
 
 const api = axios.create({

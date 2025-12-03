@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Phone, ArrowRight, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -41,8 +42,10 @@ const LoginPage = () => {
 
       setUserId(data.data?.userId);
       setStep(2);
+      toast.success('OTP sent successfully');
     } catch (err) {
       setError(err.message || 'Failed to send OTP');
+      toast.error(err.message || 'Failed to send OTP');
     } finally {
       setIsLoading(false);
     }
@@ -95,15 +98,17 @@ const LoginPage = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Invalid OTP');
 
+      toast.success('Login successful!');
       navigate('/dashboard');
     } catch (err) {
       console.error("Verification API error:", err); // Log the full error for debugging
       // Check if the specific "Invalid or expired" message came from the backend
+      let errorMessage = err.message || 'Verification failed. Please check the code and try again.';
       if (err.message && err.message.toLowerCase().includes('invalid or expired')) {
-          setError('The code entered is incorrect or has expired. Please try again or resend.');
-      } else {
-          setError(err.message || 'Verification failed. Please check the code and try again.');
+          errorMessage = 'The code entered is incorrect or has expired. Please try again or resend.';
       }
+      setError(errorMessage);
+      toast.error(errorMessage);
       setOtp(['', '', '', '', '']); // Clear OTP on error
     } 
      finally {
@@ -129,9 +134,10 @@ const LoginPage = () => {
       if (!response.ok) throw new Error('Failed to resend OTP');
       
       setOtp(['', '', '', '', '']);
-      alert('OTP sent successfully');
+      toast.success('OTP sent successfully');
     } catch (err) {
       setError(err.message || 'Failed to resend OTP');
+      toast.error(err.message || 'Failed to resend OTP');
     } finally {
       setIsLoading(false);
     }

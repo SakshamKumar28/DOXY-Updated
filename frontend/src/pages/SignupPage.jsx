@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Phone, Calendar, MapPin, ArrowRight, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const SignupPage = ({ onNavigate }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -124,6 +125,7 @@ const SignupPage = ({ onNavigate }) => {
       if (response?.data?.userId) {
         setUserId(response.data.userId);
         setShowVerification(true);
+        toast.success('Registration successful! Please verify your phone.');
       } else {
         throw new Error('Invalid response from server');
       }
@@ -137,6 +139,7 @@ const SignupPage = ({ onNavigate }) => {
       }
       
       setApiError(errorMessage);
+      toast.error(errorMessage);
       
       // Navigate to appropriate step based on error
       if (errorMessage.toLowerCase().includes('phone')) {
@@ -204,7 +207,7 @@ const SignupPage = ({ onNavigate }) => {
       console.log('Verification response:', response);
       
       // Success - show success message and handle navigation
-      alert('Account created successfully! Welcome to DOXY!');
+      toast.success('Account created successfully! Welcome to DOXY!');
       
       // Navigate to dashboard
       window.location.href = '/dashboard';
@@ -218,6 +221,7 @@ const SignupPage = ({ onNavigate }) => {
       }
       
       setApiError(errorMessage);
+      toast.error(errorMessage);
       
       // Clear verification code on error
       setVerificationCode(['', '', '', '', '']);
@@ -253,13 +257,14 @@ const SignupPage = ({ onNavigate }) => {
       
       if (response?.data?.userId) {
         setUserId(response.data.userId);
-        alert('A new verification code has been sent to your phone.');
+        toast.success('A new verification code has been sent to your phone.');
         setVerificationCode(['', '', '', '', '']);
       }
     } catch (error) {
       console.error('Resend error:', error);
       const errorMessage = error.message || 'Failed to resend code. Please try again.';
       setApiError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

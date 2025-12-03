@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
     withCredentials: true,
     headers: { 'Content-Type': 'application/json' }
 });
@@ -45,8 +46,10 @@ export const useAuth = (userType = 'user') => {
                 await api.post('/auth/user/logout');
             }
             setUser(null);
+            toast.success('Logged out successfully');
         } catch (err) {
             console.error('Logout failed:', err);
+            toast.error('Failed to logout');
         }
     };
 

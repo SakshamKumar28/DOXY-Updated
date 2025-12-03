@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, User, Stethoscope, MapPin, Star, ArrowLeft, ArrowRight } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const api = axios.create({
     baseURL: 'http://localhost:3000/api',
@@ -74,7 +75,7 @@ const BookAppointment = () => {
 
             if (response.data?.success) { // Check response structure
                 console.log('Appointment booked successfully:', response.data);
-                alert('Appointment request submitted successfully! Waiting for doctor confirmation.'); // Give user feedback
+                toast.success('Appointment request submitted successfully!'); // Give user feedback
                 navigate('/dashboard');
             } else {
                  throw new Error(response.data?.message || 'Booking request failed');
@@ -82,7 +83,9 @@ const BookAppointment = () => {
 
         } catch (err) {
             console.error("Booking failed:", err); // Log the error
-            setError(err.response?.data?.message || err.message || 'Failed to book appointment'); // Show more specific error if available
+            const errorMessage = err.response?.data?.message || err.message || 'Failed to book appointment';
+            setError(errorMessage); // Show more specific error if available
+            toast.error(errorMessage);
         } finally {
             setBookingLoading(false);
         }
