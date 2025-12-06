@@ -8,7 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const api = axios.create({
-    baseURL: 'http://localhost:3000', // Base URL now just the server root
+    baseURL: import.meta.env.VITE_API_URL, // Base URL now just the server root
     withCredentials: true,
     headers: { 'Content-Type': 'application/json' }
 });
@@ -135,7 +135,7 @@ const DoctorDashboard = () => {
              const availabilityRes = await api.get('/api/auth/doctor/availability');
              setAvailability(availabilityRes.data?.data || []);
          } catch (e) {
-             setAvailabilityError('Could not reload original schedule.');
+             setAvailabilityError('Could not reload original schedule.'+e);
          } finally {
              setAvailabilityLoading(false);
          }

@@ -5,7 +5,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: import.meta.env.VITE_API_URL,
     withCredentials: true,
     headers: { 'Content-Type': 'application/json' }
 });
@@ -33,7 +33,7 @@ const BookAppointment = () => {
             }
             setDoctors(response.data.data);
         } catch (err) {
-            setError('Failed to load doctors');
+            setError('Failed to load doctors'+ err);
         } finally {
             setLoading(false);
         }

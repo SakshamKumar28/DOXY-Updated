@@ -24,7 +24,7 @@ const DoctorRegister = () => {
     'Cardiologist','Dermatologist','Endocrinologist','Gastroenterologist','Hematologist','Neurologist','Oncologist','Pediatrician','Psychiatrist','Rheumatologist','Urologist'
   ];
 
-  const API_BASE_URL = import.meta?.env?.SERVER_URL || 'http://localhost:3000/api';
+  const API_BASE_URL = import.meta?.env?.VITE_API_URL || 'http://localhost:3000/api';
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
