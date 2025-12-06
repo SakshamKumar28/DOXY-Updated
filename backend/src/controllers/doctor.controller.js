@@ -7,7 +7,7 @@ import { validateAvailability, timeToMinutes } from '../utils/validators.js'
 
 const issueDoctorToken = (res, doctor) => {
     const token = jwt.sign({ doctorId: doctor._id, role: 'doctor' }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    const options = { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000 };
+    const options = { httpOnly: true, secure: true, sameSite: 'None', maxAge: 7 * 24 * 60 * 60 * 1000 };
     return res.status(200).cookie('doctor_token', token, options)
         .json(new ApiResponse(200, { doctor: { _id: doctor._id, fullname: doctor.fullname, email: doctor.email } }, 'Doctor action successful!'));
 };
